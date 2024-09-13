@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, ScrollView, SafeAreaView, TouchableOpacity, StyleSheet, Dimensions, StatusBar } from 'react-native';
+import { View, Text, TextInput, ScrollView, SafeAreaView, TouchableOpacity, StyleSheet, Dimensions, StatusBar, Modal, Button } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 
 const CAMERA_BAR_HEIGHT = 0; // Hauteur estimée de la barre de caméra
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -11,8 +12,8 @@ const Tab = ({ label, active, onPress }) => (
   </TouchableOpacity>
 );
 
-const CompanyCard = ({ name, vat, address, phone, website }) => (
-  <View style={styles.card}>
+const CompanyCard = ({ name, vat, address, phone, website, onPress }) => (
+  <TouchableOpacity style={styles.card} onPress={onPress}>
     <Text style={styles.companyName}>{name}</Text>
     <Text style={styles.vatNumber}>N° d'entreprise : {vat}</Text>
     <View style={styles.infoRow}>
@@ -20,38 +21,41 @@ const CompanyCard = ({ name, vat, address, phone, website }) => (
       <Text style={styles.infoText}>{address}</Text>
     </View>
     <View style={styles.infoContainer}>
-  {phone && /^\d/.test(phone) ? (
-    <View style={styles.infoRow}>
-      <Ionicons name="call-outline" size={16} color="#666" />      
-      <Text style={styles.infoText}>{phone}</Text>
-    </View>
-  ) : null}
+      {phone && /^\d/.test(phone) ? (
+        <View style={styles.infoRow}>
+          <Ionicons name="call-outline" size={16} color="#666" />
+          <Text style={styles.infoText}>{phone}</Text>
+        </View>
+      ) : null}
 
-  {website ? (
-    <View style={styles.infoRow}>
-      <Ionicons name="globe-outline" size={16} color="#666" />
-      <Text style={styles.infoText}>{website}</Text>
+      {website ? (
+        <View style={styles.infoRow}>
+          <Ionicons name="globe-outline" size={16} color="#666" />
+          <Text style={styles.infoText}>{website}</Text>
+        </View>
+      ) : null}
     </View>
-  ) : null}
-</View>
-
-  </View>
+  </TouchableOpacity>
 );
 
 export default function HomeComponent() {
   const [activeTab, setActiveTab] = useState('search');
   const [data, setData] = useState([]);
+  const [filteredData, setFilteredData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterType, setFilterType] = useState('EnterpriseNumber');
+  const [modalVisible, setModalVisible] = useState(false);
+  const navigation = useNavigation();
 
   useEffect(() => {
-    // Fonction pour récupérer les données
     const fetchData = async () => {
       try {
         const response = await fetch('http://10.74.2.59:3000/api/enterprises');
         const result = await response.json();
-        console.log(result)
         setData(result);
+        setFilteredData(result);
       } catch (error) {
         setError(error.message);
       } finally {
@@ -60,7 +64,33 @@ export default function HomeComponent() {
     };
 
     fetchData();
-  }, []); // Le tableau vide [] signifie que l'effet s'exécute uniquement lors du premier rendu
+  }, []);
+
+  useEffect(() => {
+    if (searchTerm === '') {
+      setFilteredData(data);
+    } else {
+      const filterData = () => {
+        return data.filter(item => {
+          switch (filterType) {
+            case 'EnterpriseNumber':
+              return item.EnterpriseNumber.toLowerCase().includes(searchTerm.toLowerCase());
+            case 'Denomination':
+              return item.Denomination.toLowerCase().includes(searchTerm.toLowerCase());
+            case 'StreetFR':
+              return (item.StreetFR + ' ' + item.MunicipalityFR).toLowerCase().includes(searchTerm.toLowerCase());
+            default:
+              return false;
+          }
+        });
+      };
+      setFilteredData(filterData());
+    }
+  }, [searchTerm, filterType, data]);
+
+  const handleSearch = () => {
+    setSearchTerm(searchTerm.trim());
+  };
 
   if (loading) return <Text>Loading...</Text>;
   if (error) return <Text>Error: {error}</Text>;
@@ -76,11 +106,13 @@ export default function HomeComponent() {
               style={styles.searchInput}
               placeholder="Rechercher une entreprise..."
               placeholderTextColor="rgba(255, 255, 255, 0.7)"
+              value={searchTerm}
+              onChangeText={text => setSearchTerm(text)}
             />
-            <TouchableOpacity style={styles.iconButton}>
+            <TouchableOpacity style={styles.iconButton} onPress={handleSearch}>
               <Ionicons name="search" size={24} color="white" />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.iconButton}>
+            <TouchableOpacity style={styles.iconButton} onPress={() => setModalVisible(true)}>
               <Ionicons name="filter" size={24} color="white" />
             </TouchableOpacity>
           </View>
@@ -93,14 +125,15 @@ export default function HomeComponent() {
         </View>
 
         <ScrollView style={styles.content}>
-          {data.map((item, index) => (
+          {filteredData.map((item, index) => (
             <CompanyCard
               key={index}
               name={item.Denomination}
               vat={item.EnterpriseNumber}
-              address={item.HouseNumber +' '+ item.StreetFR+' ' + item.MunicipalityFR+' ' +item.Zipcode  }
+              address={item.HouseNumber +' '+ item.StreetFR+' ' + item.MunicipalityFR+' ' +item.Zipcode}
               phone={item.Value}
               website={item.Value}
+              onPress={() => navigation.navigate('CompanyDetail', { enterpriseId: item.enterpriseId })}
             />
           ))}
         </ScrollView>
@@ -108,6 +141,39 @@ export default function HomeComponent() {
         <TouchableOpacity style={styles.fab}>
           <Ionicons name="add" size={24} color="white" />
         </TouchableOpacity>
+
+        {/* Modal pour le filtre */}
+        <Modal
+          animationType="slide"
+          transparent={true}
+          visible={modalVisible}
+          onRequestClose={() => setModalVisible(false)}
+        >
+          <View style={styles.modalContainer}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>Choisir un filtre</Text>
+              <TouchableOpacity
+                style={[styles.filterOption, filterType === 'EnterpriseNumber' && styles.selectedFilter]}
+                onPress={() => { setFilterType('EnterpriseNumber'); setModalVisible(false); }}
+              >
+                <Text style={styles.filterText}>Numéro d'entreprise</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.filterOption, filterType === 'Denomination' && styles.selectedFilter]}
+                onPress={() => { setFilterType('Denomination'); setModalVisible(false); }}
+              >
+                <Text style={styles.filterText}>Dénomination</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.filterOption, filterType === 'StreetFR' && styles.selectedFilter]}
+                onPress={() => { setFilterType('StreetFR'); setModalVisible(false); }}
+              >
+                <Text style={styles.filterText}>Rue</Text>
+              </TouchableOpacity>
+              <Button title="Fermer" onPress={() => setModalVisible(false)} />
+            </View>
+          </View>
+        </Modal>
       </SafeAreaView>
     </View>
   );
@@ -218,5 +284,34 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     elevation: 4,
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  modalContent: {
+    width: 300,
+    backgroundColor: 'white',
+    borderRadius: 10,
+    padding: 20,
+    alignItems: 'center',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 15,
+  },
+  filterOption: {
+    padding: 15,
+    width: '100%',
+    alignItems: 'center',
+  },
+  selectedFilter: {
+    backgroundColor: '#0747a6',
+  },
+  filterText: {
+    color: '#666',
   },
 });

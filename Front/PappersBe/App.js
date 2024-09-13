@@ -1,17 +1,7 @@
+// App.js
 import React from 'react';
-import { SafeAreaView, StyleSheet } from 'react-native';
-import HomeComponent from './Component/HomeComponent';
+import AppNavigator from './AppNavigator'; // Assurez-vous que le chemin est correct
 
 export default function App() {
-  return (
-    <SafeAreaView style={styles.container}>
-      <HomeComponent />
-    </SafeAreaView>
-  );
+  return <AppNavigator />;
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-});

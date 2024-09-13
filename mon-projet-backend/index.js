@@ -68,6 +68,48 @@ app.delete('/api/enterprises/:id', async (req, res) => {
   }
 });
 
+// Rechercher une entreprise par EnterpriseNumber
+app.get('/api/enterprises/by-enterprise-number/:number', async (req, res) => {
+  try {
+    const enterprise = await db.collection('enterprise').findOne({ EnterpriseNumber: req.params.number });
+    if (enterprise) {
+      res.json(enterprise);
+    } else {
+      res.status(404).json({ message: 'Entreprise non trouvée' });
+    }
+  } catch (error) {
+    res.status(500).json({ message: 'Erreur lors de la recherche par EnterpriseNumber', error });
+  }
+});
+
+// Rechercher une entreprise par Dénomination
+app.get('/api/enterprises/by-denomination/:denomination', async (req, res) => {
+  try {
+    const enterprises = await db.collection('enterprise').find({ Denomination: req.params.denomination }).toArray();
+    if (enterprises.length > 0) {
+      res.json(enterprises);
+    } else {
+      res.status(404).json({ message: 'Aucune entreprise trouvée avec cette dénomination' });
+    }
+  } catch (error) {
+    res.status(500).json({ message: 'Erreur lors de la recherche par Dénomination', error });
+  }
+});
+
+// Rechercher une entreprise par StreetFR
+app.get('/api/enterprises/by-streetfr/:street', async (req, res) => {
+  try {
+    const enterprises = await db.collection('enterprise').find({ StreetFR: req.params.street }).toArray();
+    if (enterprises.length > 0) {
+      res.json(enterprises);
+    } else {
+      res.status(404).json({ message: 'Aucune entreprise trouvée avec cette rue' });
+    }
+  } catch (error) {
+    res.status(500).json({ message: 'Erreur lors de la recherche par StreetFR', error });
+  }
+});
+
 // Récupérer tous les établissements avec pagination
 app.get('/api/establishments', async (req, res) => {
   try {
