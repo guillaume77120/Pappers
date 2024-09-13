@@ -12,6 +12,64 @@ app.use(express.json());
 const mongoURI = 'mongodb://localhost:27017';
 const dbName = 'Pappers';
 let db;
+const fs = require('fs');
+const csv = require('csv-parser');
+
+// Fonction pour charger et traiter le fichier CSV
+function loadCSVData(filePath) {
+  return new Promise((resolve, reject) => {
+    const results = {};
+    fs.createReadStream(filePath)
+      .pipe(csv())
+      .on('data', (data) => {
+        if (!results[data.Category]) {
+          results[data.Category] = {};
+        }
+        if (!results[data.Category][data.Code]) {
+          results[data.Category][data.Code] = {};
+        }
+        results[data.Category][data.Code][data.Language] = data.Description;
+      })
+      .on('end', () => {
+        resolve(results);
+      })
+      .on('error', (error) => {
+        reject(error);
+      });
+  });
+}
+
+// Fonction pour remplacer les codes par leurs descriptions
+// Fonction pour remplacer les codes par leurs descriptions
+function replaceCodesWithDescriptions(object, csvData) {
+  for (const [key, value] of Object.entries(object)) {
+    if (typeof value === 'object' && value !== null) {
+      object[key] = replaceCodesWithDescriptions(value, csvData);
+    } else if (typeof value === 'string') {
+      if (key === 'NaceCode' && object['NaceVersion']) {
+        const naceCategory = `Nace${object['NaceVersion']}`;
+        if (csvData[naceCategory] && csvData[naceCategory][value]) {
+          object[key] = csvData[naceCategory][value]['FR'] || value;
+        }
+      } else if (csvData[key] && csvData[key][value]) {
+        object[key] = csvData[key][value]['FR'] || value;
+      }
+    }
+  }
+  return object;
+}
+
+
+// Chargez les données CSV au démarrage de l'application
+let csvData;
+loadCSVData('code.csv')
+  .then(data => {
+    csvData = data;
+    console.log('Données CSV chargées avec succès');
+  })
+  .catch(error => {
+    console.error('Erreur lors du chargement des données CSV:', error);
+  });
 
 MongoClient.connect(mongoURI, { useNewUrlParser: true, useUnifiedTopology: true })
   .then(client => {
@@ -105,30 +163,44 @@ app.get('/api/scrape/:companyNumber', async (req, res) => {
   }
 });
 
-// Récupérer une entreprise par EnterpriseNumber et ses branches et établissements associés
 app.get('/api/enterprises/:number/details', async (req, res) => {
   try {
     const { number } = req.params;
-
+    
     // Récupérer l'entreprise par EnterpriseNumber
-    const enterprise = await db.collection('enterprise').findOne({
+    let enterprise = await db.collection('enterprise').findOne({
       EnterpriseNumber: number
     });
-
+    
     if (!enterprise) {
       return res.status(404).json({ message: 'Entreprise non trouvée' });
     }
-
+    
     // Récupérer les branches associées
-    const branches = await db.collection('branch').find({
+    let branches = await db.collection('branch').find({
       EnterpriseNumber: enterprise.EnterpriseNumber
     }).toArray();
-
+    
     // Récupérer les établissements associés
-    const establishments = await db.collection('establishment').find({
+    let establishments = await db.collection('establishment').find({
       EnterpriseNumber: enterprise.EnterpriseNumber
     }).toArray();
-
+    
+    // Remplacer les codes par leurs descriptions
+    if (csvData) {
+      enterprise = replaceCodesWithDescriptions(enterprise, csvData);
+      branches = branches.map(branch => replaceCodesWithDescriptions(branch, csvData));
+      establishments = establishments.map(establishment => {
+        establishment = replaceCodesWithDescriptions(establishment, csvData);
+        if (establishment.activities) {
+          establishment.activities = establishment.activities.map(activity => 
+            replaceCodesWithDescriptions(activity, csvData)
+          );
+        }
+        return establishment;
+      });
+    }
+    
     // Répondre avec les détails de l'entreprise, branches et établissements
     res.json({
       enterprise,
