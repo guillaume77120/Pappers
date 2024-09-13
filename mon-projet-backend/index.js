@@ -1,5 +1,8 @@
 const express = require('express');
 const { MongoClient, ObjectId } = require('mongodb');
+const axios = require('axios');
+const cheerio = require('cheerio');
+
 const app = express();
 const port = 3000;
 
@@ -156,6 +159,28 @@ app.delete('/api/branches/:id', async (req, res) => {
   } catch (error) {
     res.status(500).json({ message: 'Erreur lors de la suppression de la branche', error });
   }
+});
+
+// Route pour obtenir les informations de l'entreprise via scraping
+app.get('/api/scrape/:companyNumber', async (req, res) => {
+    const { companyNumber } = req.params;
+    const formattedNumber = companyNumber.replace(/\./g, ''); // Supprimer les points dans le numéro
+    const url = `https://kbopub.economie.fgov.be/kbopub/zoeknummerform.html?lang=fr&nummer=${formattedNumber}`;
+
+    try {
+        // Récupérer le contenu de la page
+        const { data } = await axios.get(url);
+        const $ = cheerio.load(data);
+
+        // Extraire les informations (adapter le sélecteur selon la structure HTML de la page)
+        const companyInfo = $('div.some-class-name').text().trim(); // Remplace 'div.some-class-name' par le sélecteur approprié
+
+        // Envoyer les informations en réponse
+        res.json({ companyNumber, companyInfo });
+    } catch (error) {
+        console.error(`Erreur lors du scraping pour ${companyNumber}:`, error.message);
+        res.status(500).json({ error: `Erreur lors du scraping pour ${companyNumber}` });
+    }
 });
 
 app.listen(port, () => {
