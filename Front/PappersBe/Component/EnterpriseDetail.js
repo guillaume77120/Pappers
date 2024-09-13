@@ -1,32 +1,17 @@
-// enterpriseDetail.js
+// CompanyDetail.js
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 
-const enterpriseDetail = ({ route }) => {
-  const { enterpriseId } = route.params;
-  useEffect(() => {
-    // Fonction pour récupérer les données
-    const fetchData = async () => {
-      try {
-        const response = await fetch(`http://10.74.2.59:3000/api/enterprises/${enterpriseId}`);
-        const result = await response.json();
-        setData(result);
-      } catch (error) {
-        setError(error.message);
-      } finally {
-        setLoading(false);
-      }
-    };
+const CompanyDetail = ({ route }) => {
+  const { company } = route.params;
 
-    fetchData();
-  }, []);
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>{enterprise.name}</Text>
-      <Text style={styles.detail}>N° d'entreprise : {enterprise.vat}</Text>
-      <Text style={styles.detail}>Adresse : {enterprise.address}</Text>
-      <Text style={styles.detail}>Téléphone : {enterprise.phone}</Text>
-      <Text style={styles.detail}>Site web : {enterprise.website}</Text>
+      <Text style={styles.title}>{company.name}</Text>
+      <Text style={styles.detail}>N° d'entreprise : {company.vat}</Text>
+      <Text style={styles.detail}>Adresse : {company.address}</Text>
+      <Text style={styles.detail}>Téléphone : {company.phone}</Text>
+      <Text style={styles.detail}>Site web : {company.website}</Text>
     </View>
   );
 };
@@ -48,4 +33,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default enterpriseDetail;
+export default CompanyDetail;

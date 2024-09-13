@@ -133,7 +133,7 @@ export default function HomeComponent() {
               address={item.HouseNumber +' '+ item.StreetFR+' ' + item.MunicipalityFR+' ' +item.Zipcode}
               phone={item.Value}
               website={item.Value}
-              onPress={() => navigation.navigate('CompanyDetail', { enterpriseId: item.enterpriseId })}
+              onPress={() => navigation.navigate('CompanyDetail', { company: item })}
             />
           ))}
         </ScrollView>
