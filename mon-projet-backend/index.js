@@ -27,7 +27,7 @@ const paginate = async (collection, page, limit) => {
 app.get('/api/enterprises', async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1; // Page courante
-    const limit = parseInt(req.query.limit) || 10; // Nombre d'éléments par page
+    const limit = parseInt(req.query.limit) || 50; // Nombre d'éléments par page
     const enterprises = await paginate(db.collection('enterprise'), page, limit);
     res.json(enterprises);
   } catch (error) {
