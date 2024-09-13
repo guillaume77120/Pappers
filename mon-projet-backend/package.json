@@ -1,0 +1,16 @@
+{
+  "name": "mon-projet-backend",
+  "version": "1.0.0",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js"
+  },
+  
+  "dependencies": {
+    "express": "^4.17.1",
+    "mongodb": "^4.8.0"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.15"
+  }
+}
