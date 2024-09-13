@@ -21,103 +21,39 @@ MongoClient.connect(mongoURI, { useNewUrlParser: true, useUnifiedTopology: true 
   .catch(err => console.error('Erreur de connexion à MongoDB :', err));
 
 // Fonction pour paginer les résultats
-const paginate = async (collection, page, limit) => {
+const paginate = async (collection, page, limit, filter = {}) => {
   const skip = (page - 1) * limit;
-  return collection.find().skip(skip).limit(limit).toArray();
+  return collection.find(filter).skip(skip).limit(limit).toArray();
 };
 
-// Récupérer toutes les entreprises avec pagination
+// Récupérer toutes les entreprises avec pagination et recherche
 app.get('/api/enterprises', async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1; // Page courante
-    const limit = parseInt(req.query.limit) || 10; // Nombre d'éléments par page
-    const enterprises = await paginate(db.collection('enterprise'), page, limit);
+    const limit = parseInt(req.query.limit) || 20; // Nombre d'éléments par page
+    const searchQuery = req.query.search ? req.query.search.trim() : ''; // Requête de recherche
+
+    // Construire la requête de filtrage
+    const filter = searchQuery ? {
+      $or: [
+        { Denomination: { $regex: searchQuery, $options: 'i' } },
+        { EnterpriseNumber: { $regex: searchQuery, $options: 'i' } },
+        { StreetFR: { $regex: searchQuery, $options: 'i' } }  // Ajout du filtre pour StreetFR
+      ]
+    } : {};
+
+    // Récupérer les résultats avec pagination
+    const enterprises = await paginate(db.collection('enterprise'), page, limit, filter);
+
     res.json(enterprises);
   } catch (error) {
     res.status(500).json({ message: 'Erreur lors de la récupération des entreprises', error });
   }
 });
 
-// Ajouter une entreprise
-app.post('/api/enterprises', async (req, res) => {
-  try {
-    const result = await db.collection('enterprise').insertOne(req.body);
-    res.json({ message: 'Entreprise ajoutée avec succès', result });
-  } catch (error) {
-    res.status(500).json({ message: 'Erreur lors de l\'ajout de l\'entreprise', error });
-  }
-});
 
-// Mettre à jour une entreprise
-app.put('/api/enterprises/:id', async (req, res) => {
-  try {
-    const result = await db.collection('enterprise').updateOne(
-      { _id: new ObjectId(req.params.id) },
-      { $set: req.body }
-    );
-    res.json({ message: 'Entreprise mise à jour avec succès', result });
-  } catch (error) {
-    res.status(500).json({ message: 'Erreur lors de la mise à jour de l\'entreprise', error });
-  }
-});
 
-// Supprimer une entreprise
-app.delete('/api/enterprises/:id', async (req, res) => {
-  try {
-    const result = await db.collection('enterprise').deleteOne({ _id: new ObjectId(req.params.id) });
-    res.json({ message: 'Entreprise supprimée avec succès', result });
-  } catch (error) {
-    res.status(500).json({ message: 'Erreur lors de la suppression de l\'entreprise', error });
-  }
-});
 
-// Rechercher une entreprise par EnterpriseNumber (avec correspondance partielle)
-app.get('/api/enterprises/by-enterprise-number/:number', async (req, res) => {
-  try {
-    const enterprises = await db.collection('enterprise').find({
-      EnterpriseNumber: { $regex: req.params.number, $options: 'i' }
-    }).toArray();
-    if (enterprises.length > 0) {
-      res.json(enterprises);
-    } else {
-      res.status(404).json({ message: 'Aucune entreprise trouvée avec ce numéro d\'entreprise' });
-    }
-  } catch (error) {
-    res.status(500).json({ message: 'Erreur lors de la recherche par EnterpriseNumber', error });
-  }
-});
-
-// Rechercher une entreprise par Dénomination (avec correspondance partielle)
-app.get('/api/enterprises/by-denomination/:denomination', async (req, res) => {
-  try {
-    const enterprises = await db.collection('enterprise').find({
-      Denomination: { $regex: req.params.denomination, $options: 'i' }
-    }).toArray();
-    if (enterprises.length > 0) {
-      res.json(enterprises);
-    } else {
-      res.status(404).json({ message: 'Aucune entreprise trouvée avec cette dénomination' });
-    }
-  } catch (error) {
-    res.status(500).json({ message: 'Erreur lors de la recherche par Dénomination', error });
-  }
-});
-
-// Rechercher une entreprise par StreetFR (avec correspondance partielle)
-app.get('/api/enterprises/by-streetfr/:street', async (req, res) => {
-  try {
-    const enterprises = await db.collection('enterprise').find({
-      StreetFR: { $regex: req.params.street, $options: 'i' }
-    }).toArray();
-    if (enterprises.length > 0) {
-      res.json(enterprises);
-    } else {
-      res.status(404).json({ message: 'Aucune entreprise trouvée avec cette rue' });
-    }
-  } catch (error) {
-    res.status(500).json({ message: 'Erreur lors de la recherche par StreetFR', error });
-  }
-});
 
 // Récupérer tous les établissements avec pagination
 app.get('/api/establishments', async (req, res) => {
@@ -131,38 +67,6 @@ app.get('/api/establishments', async (req, res) => {
   }
 });
 
-// Ajouter un établissement
-app.post('/api/establishments', async (req, res) => {
-  try {
-    const result = await db.collection('establishment').insertOne(req.body);
-    res.json({ message: 'Établissement ajouté avec succès', result });
-  } catch (error) {
-    res.status(500).json({ message: 'Erreur lors de l\'ajout de l\'établissement', error });
-  }
-});
-
-// Mettre à jour un établissement
-app.put('/api/establishments/:id', async (req, res) => {
-  try {
-    const result = await db.collection('establishment').updateOne(
-      { _id: new ObjectId(req.params.id) },
-      { $set: req.body }
-    );
-    res.json({ message: 'Établissement mis à jour avec succès', result });
-  } catch (error) {
-    res.status(500).json({ message: 'Erreur lors de la mise à jour de l\'établissement', error });
-  }
-});
-
-// Supprimer un établissement
-app.delete('/api/establishments/:id', async (req, res) => {
-  try {
-    const result = await db.collection('establishment').deleteOne({ _id: new ObjectId(req.params.id) });
-    res.json({ message: 'Établissement supprimé avec succès', result });
-  } catch (error) {
-    res.status(500).json({ message: 'Erreur lors de la suppression de l\'établissement', error });
-  }
-});
 
 // Récupérer toutes les branches avec pagination
 app.get('/api/branches', async (req, res) => {
@@ -176,38 +80,6 @@ app.get('/api/branches', async (req, res) => {
   }
 });
 
-// Ajouter une branche
-app.post('/api/branches', async (req, res) => {
-  try {
-    const result = await db.collection('branch').insertOne(req.body);
-    res.json({ message: 'Branche ajoutée avec succès', result });
-  } catch (error) {
-    res.status(500).json({ message: 'Erreur lors de l\'ajout de la branche', error });
-  }
-});
-
-// Mettre à jour une branche
-app.put('/api/branches/:id', async (req, res) => {
-  try {
-    const result = await db.collection('branch').updateOne(
-      { _id: new ObjectId(req.params.id) },
-      { $set: req.body }
-    );
-    res.json({ message: 'Branche mise à jour avec succès', result });
-  } catch (error) {
-    res.status(500).json({ message: 'Erreur lors de la mise à jour de la branche', error });
-  }
-});
-
-// Supprimer une branche
-app.delete('/api/branches/:id', async (req, res) => {
-  try {
-    const result = await db.collection('branch').deleteOne({ _id: new ObjectId(req.params.id) });
-    res.json({ message: 'Branche supprimée avec succès', result });
-  } catch (error) {
-    res.status(500).json({ message: 'Erreur lors de la suppression de la branche', error });
-  }
-});
 
 // Route pour obtenir les informations de l'entreprise via scraping
 app.get('/api/scrape/:companyNumber', async (req, res) => {
@@ -237,7 +109,7 @@ app.get('/api/scrape/:companyNumber', async (req, res) => {
 app.get('/api/enterprises/:number/details', async (req, res) => {
   try {
     const { number } = req.params;
-    console.log(number)
+
     // Récupérer l'entreprise par EnterpriseNumber
     const enterprise = await db.collection('enterprise').findOne({
       EnterpriseNumber: number

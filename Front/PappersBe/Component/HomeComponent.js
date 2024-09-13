@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, ScrollView, SafeAreaView, TouchableOpacity, StyleSheet, Dimensions, StatusBar, Modal, Button, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
+import { ApiUrl } from '../apiUrl';
 
 const CAMERA_BAR_HEIGHT = 0; // Hauteur estimée de la barre de caméra
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -45,19 +46,19 @@ export default function HomeComponent() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterType, setFilterType] = useState('EnterpriseNumber');
+  const [filterType, setFilterType] = useState('Denomination');
   const [modalVisible, setModalVisible] = useState(false);
   const [page, setPage] = useState(1); // Page actuelle
   const [hasMoreData, setHasMoreData] = useState(true); // Pour vérifier s'il y a plus de données à charger
   const [loadingMore, setLoadingMore] = useState(false); // Pour gérer le chargement de données supplémentaires
   const navigation = useNavigation();
-
+  const [searchPlaceholder,SetSearchPlaceholder] = useState('Rechercher une entreprise');
   useEffect(() => {
     const fetchData = async (pageNumber = 1, searchQuery = '') => {
       try {
         setLoading(true);
         const response = await fetch(
-          `http://10.74.2.59:3000/api/enterprises?page=${pageNumber}&limit=20&search=${encodeURIComponent(searchQuery)}`
+          `${ApiUrl}/enterprises?page=${pageNumber}&limit=20&search=${encodeURIComponent(searchQuery)}`
         );
         const result = await response.json();
         console.log('Data fetched:', result);
@@ -130,7 +131,7 @@ export default function HomeComponent() {
           <View style={styles.searchContainer}>
             <TextInput
               style={styles.searchInput}
-              placeholder="Rechercher une entreprise..."
+              placeholder={searchPlaceholder}
               placeholderTextColor="rgba(255, 255, 255, 0.7)"
               value={searchTerm}
               onChangeText={text => setSearchTerm(text)}
@@ -183,21 +184,22 @@ export default function HomeComponent() {
           <View style={styles.modalContainer}>
             <View style={styles.modalContent}>
               <Text style={styles.modalTitle}>Choisir un filtre</Text>
+             
+              <TouchableOpacity
+                style={[styles.filterOption, filterType === 'Denomination' && styles.selectedFilter]}
+                onPress={() => { setFilterType('Denomination'); setModalVisible(false);SetSearchPlaceholder('Rechercher une entreprise') }}
+              >
+                <Text style={styles.filterText}>Nom</Text>
+              </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.filterOption, filterType === 'EnterpriseNumber' && styles.selectedFilter]}
-                onPress={() => { setFilterType('EnterpriseNumber'); setModalVisible(false); }}
+                onPress={() => { setFilterType('EnterpriseNumber'); setModalVisible(false);SetSearchPlaceholder('Rechercher par n° entreprise') }}
               >
                 <Text style={styles.filterText}>Numéro d'entreprise</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.filterOption, filterType === 'Denomination' && styles.selectedFilter]}
-                onPress={() => { setFilterType('Denomination'); setModalVisible(false); }}
-              >
-                <Text style={styles.filterText}>Dénomination</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
                 style={[styles.filterOption, filterType === 'StreetFR' && styles.selectedFilter]}
-                onPress={() => { setFilterType('StreetFR'); setModalVisible(false); }}
+                onPress={() => { setFilterType('StreetFR'); setModalVisible(false);SetSearchPlaceholder('Rechercher par adresse') }}
               >
                 <Text style={styles.filterText}>Rue</Text>
               </TouchableOpacity>
