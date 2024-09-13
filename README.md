@@ -21,3 +21,21 @@
    Exécutez la commande suivante pour installer les dépendances du projet :
    ```bash
    npm install
+2. **Démarrage de l'application** :
+   Pour lancer l'application front, exécutez :
+   ```bash
+   npm run start
+3. **Changer l'URL de l'API** :
+   Pour modifier l'URL de l'API utilisée par l'application sur l'ensemble du projet, mettez à jour le fichier apiUrl.js.
+   
+## Backend
+
+1. **Installation des dépendances** :
+   Installez les dépendances backend avec la commande :
+   ```bash
+   npm install
+
+2. **Démarrage du serveur backend** :
+   Utilisez Nodemon pour lancer le serveur en mode développement :
+   ```bash
+   npx nodemon index.js
