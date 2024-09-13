@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, ScrollView, SafeAreaView, TouchableOpacity, StyleSheet, Dimensions, StatusBar, Modal, Button } from 'react-native';
+import { View, Text, TextInput, ScrollView, SafeAreaView, TouchableOpacity, StyleSheet, Dimensions, StatusBar, Modal, Button, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 
@@ -47,31 +47,46 @@ export default function HomeComponent() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('EnterpriseNumber');
   const [modalVisible, setModalVisible] = useState(false);
+  const [page, setPage] = useState(1); // Page actuelle
+  const [hasMoreData, setHasMoreData] = useState(true); // Pour vérifier s'il y a plus de données à charger
+  const [loadingMore, setLoadingMore] = useState(false); // Pour gérer le chargement de données supplémentaires
   const navigation = useNavigation();
 
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchData = async (pageNumber = 1, searchQuery = '') => {
       try {
-        const response = await fetch('http://10.74.2.59:3000/api/enterprises');
+        setLoading(true);
+        const response = await fetch(
+          `http://10.74.2.59:3000/api/enterprises?page=${pageNumber}&limit=20&search=${encodeURIComponent(searchQuery)}`
+        );
         const result = await response.json();
-        setData(result);
-        setFilteredData(result);
+        console.log('Data fetched:', result);
+
+        if (result.length > 0) {
+          setData(prevData => [...prevData, ...result]);
+          setHasMoreData(result.length === 20); // Si on a récupéré 20 éléments, on suppose qu'il y a encore plus de données
+        } else {
+          setHasMoreData(false); // Aucune donnée supplémentaire à charger
+        }
       } catch (error) {
         setError(error.message);
       } finally {
         setLoading(false);
+        setLoadingMore(false);
       }
     };
 
-    fetchData();
-  }, []);
+    fetchData(page, searchTerm); // Charger les données en fonction de la page actuelle et du terme de recherche
+  }, [page, searchTerm]);
 
   useEffect(() => {
     if (searchTerm === '') {
       setFilteredData(data);
     } else {
       const filterData = () => {
+        console.log('Filtering with term:', searchTerm);
         return data.filter(item => {
+          console.log('Item being filtered:', item);
           switch (filterType) {
             case 'EnterpriseNumber':
               return item.EnterpriseNumber.toLowerCase().includes(searchTerm.toLowerCase());
@@ -89,13 +104,24 @@ export default function HomeComponent() {
   }, [searchTerm, filterType, data]);
 
   const handleSearch = () => {
+    console.log('Search triggered with term:', searchTerm);
     setSearchTerm(searchTerm.trim());
   };
 
-  if (loading) return <Text>Loading...</Text>;
+  const handleScroll = (event) => {
+    const { contentOffset, layoutMeasurement, contentSize } = event.nativeEvent;
+    const distanceFromBottom = contentSize.height - contentOffset.y - layoutMeasurement.height;
+    if (distanceFromBottom < 50 && !loadingMore && hasMoreData) {
+      setLoadingMore(true);
+      setPage(prevPage => prevPage + 1); // Charger la page suivante
+    }
+  };
+
+
   if (error) return <Text>Error: {error}</Text>;
 
   return (
+
     <View style={styles.container}>
       <StatusBar barStyle="light-content" />
       <View style={styles.cameraBar} />
@@ -124,7 +150,7 @@ export default function HomeComponent() {
           </View>
         </View>
 
-        <ScrollView style={styles.content}>
+        <ScrollView style={styles.content} onScroll={handleScroll}>
           {filteredData.map((item, index) => (
             <CompanyCard
               key={index}
@@ -133,9 +159,14 @@ export default function HomeComponent() {
               address={item.HouseNumber +' '+ item.StreetFR+' ' + item.MunicipalityFR+' ' +item.Zipcode}
               phone={item.Value}
               website={item.Value}
-              onPress={() => navigation.navigate('CompanyDetail', { company: item })}
+              onPress={() => navigation.navigate('CompanyDetail', { enterpriseNumber: item.EnterpriseNumber })}
             />
           ))}
+          {loadingMore && (
+            <View style={styles.loaderContainer}>
+              <ActivityIndicator size="large" color="#0747a6" />
+            </View>
+          )}
         </ScrollView>
 
         <TouchableOpacity style={styles.fab}>
@@ -284,6 +315,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     elevation: 4,
+  },
+  loaderContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 16,
   },
   modalContainer: {
     flex: 1,

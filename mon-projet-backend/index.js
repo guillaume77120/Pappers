@@ -30,7 +30,7 @@ const paginate = async (collection, page, limit) => {
 app.get('/api/enterprises', async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1; // Page courante
-    const limit = parseInt(req.query.limit) || 50; // Nombre d'éléments par page
+    const limit = parseInt(req.query.limit) || 10; // Nombre d'éléments par page
     const enterprises = await paginate(db.collection('enterprise'), page, limit);
     res.json(enterprises);
   } catch (error) {
@@ -71,24 +71,28 @@ app.delete('/api/enterprises/:id', async (req, res) => {
   }
 });
 
-// Rechercher une entreprise par EnterpriseNumber
+// Rechercher une entreprise par EnterpriseNumber (avec correspondance partielle)
 app.get('/api/enterprises/by-enterprise-number/:number', async (req, res) => {
   try {
-    const enterprise = await db.collection('enterprise').findOne({ EnterpriseNumber: req.params.number });
-    if (enterprise) {
-      res.json(enterprise);
+    const enterprises = await db.collection('enterprise').find({
+      EnterpriseNumber: { $regex: req.params.number, $options: 'i' }
+    }).toArray();
+    if (enterprises.length > 0) {
+      res.json(enterprises);
     } else {
-      res.status(404).json({ message: 'Entreprise non trouvée' });
+      res.status(404).json({ message: 'Aucune entreprise trouvée avec ce numéro d\'entreprise' });
     }
   } catch (error) {
     res.status(500).json({ message: 'Erreur lors de la recherche par EnterpriseNumber', error });
   }
 });
 
-// Rechercher une entreprise par Dénomination
+// Rechercher une entreprise par Dénomination (avec correspondance partielle)
 app.get('/api/enterprises/by-denomination/:denomination', async (req, res) => {
   try {
-    const enterprises = await db.collection('enterprise').find({ Denomination: req.params.denomination }).toArray();
+    const enterprises = await db.collection('enterprise').find({
+      Denomination: { $regex: req.params.denomination, $options: 'i' }
+    }).toArray();
     if (enterprises.length > 0) {
       res.json(enterprises);
     } else {
@@ -99,10 +103,12 @@ app.get('/api/enterprises/by-denomination/:denomination', async (req, res) => {
   }
 });
 
-// Rechercher une entreprise par StreetFR
+// Rechercher une entreprise par StreetFR (avec correspondance partielle)
 app.get('/api/enterprises/by-streetfr/:street', async (req, res) => {
   try {
-    const enterprises = await db.collection('enterprise').find({ StreetFR: req.params.street }).toArray();
+    const enterprises = await db.collection('enterprise').find({
+      StreetFR: { $regex: req.params.street, $options: 'i' }
+    }).toArray();
     if (enterprises.length > 0) {
       res.json(enterprises);
     } else {
@@ -205,26 +211,64 @@ app.delete('/api/branches/:id', async (req, res) => {
 
 // Route pour obtenir les informations de l'entreprise via scraping
 app.get('/api/scrape/:companyNumber', async (req, res) => {
-    const { companyNumber } = req.params;
-    const formattedNumber = companyNumber.replace(/\./g, ''); // Supprimer les points dans le numéro
-    const url = `https://kbopub.economie.fgov.be/kbopub/zoeknummerform.html?lang=fr&nummer=${formattedNumber}`;
+  const { companyNumber } = req.params;
+  const formattedNumber = companyNumber.replace(/\./g, ''); // Supprimer les points dans le numéro d'entreprise
 
-    try {
-        // Récupérer le contenu de la page
-        const { data } = await axios.get(url);
-        const $ = cheerio.load(data);
+  const url = `https://www.companywebsite.com/${formattedNumber}`;
 
-        // Extraire les informations (adapter le sélecteur selon la structure HTML de la page)
-        const companyInfo = $('div.some-class-name').text().trim(); // Remplace 'div.some-class-name' par le sélecteur approprié
+  try {
+    const { data } = await axios.get(url);
+    const $ = cheerio.load(data);
 
-        // Envoyer les informations en réponse
-        res.json({ companyNumber, companyInfo });
-    } catch (error) {
-        console.error(`Erreur lors du scraping pour ${companyNumber}:`, error.message);
-        res.status(500).json({ error: `Erreur lors du scraping pour ${companyNumber}` });
-    }
+    // Extrait les informations souhaitées à partir de la page
+    const companyInfo = {
+      name: $('h1.company-name').text(),
+      address: $('p.company-address').text(),
+      // Ajoutez ici d'autres informations à extraire
+    };
+
+    res.json(companyInfo);
+  } catch (error) {
+    res.status(500).json({ message: 'Erreur lors du scraping des informations', error });
+  }
 });
 
+// Récupérer une entreprise par EnterpriseNumber et ses branches et établissements associés
+app.get('/api/enterprises/:number/details', async (req, res) => {
+  try {
+    const { number } = req.params;
+    console.log(number)
+    // Récupérer l'entreprise par EnterpriseNumber
+    const enterprise = await db.collection('enterprise').findOne({
+      EnterpriseNumber: number
+    });
+
+    if (!enterprise) {
+      return res.status(404).json({ message: 'Entreprise non trouvée' });
+    }
+
+    // Récupérer les branches associées
+    const branches = await db.collection('branch').find({
+      EnterpriseNumber: enterprise.EnterpriseNumber
+    }).toArray();
+
+    // Récupérer les établissements associés
+    const establishments = await db.collection('establishment').find({
+      EnterpriseNumber: enterprise.EnterpriseNumber
+    }).toArray();
+
+    // Répondre avec les détails de l'entreprise, branches et établissements
+    res.json({
+      enterprise,
+      branches,
+      establishments
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Erreur lors de la récupération des détails de l\'entreprise', error });
+  }
+});
+
+// Démarrage du serveur
 app.listen(port, () => {
   console.log(`Serveur en cours d'exécution sur http://localhost:${port}`);
 });

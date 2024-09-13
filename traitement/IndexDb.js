@@ -35,7 +35,8 @@ async function createIndexes(db) {
     // Création de l'index sur EnterpriseNumber dans la collection enterprise
     await db.collection('enterprise').createIndex({ EnterpriseNumber: 1 });
     console.log("Index créé sur 'EnterpriseNumber' dans la collection 'enterprise'");
-    
+    await db.collection('enterprise').createIndex({ Denomination: 1 });
+    console.log("Index créé sur 'EnterpriseNumber' dans la collection 'enterprise'");
     // Création de l'index sur EstablishmentNumber dans la collection establishment
     await db.collection('establishment').createIndex({ EstablishmentNumber: 1 });
     console.log("Index créé sur 'EstablishmentNumber' dans la collection 'establishment'");
