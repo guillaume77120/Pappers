@@ -1,11 +1,23 @@
-Traitement
-insérer les json dans dossier json_à_insérer_mongo
-rajouter les index EnterpriseNumber, Denomination et StreetFr dans Enterprise et plus si nécessaire
-front
-npm install
-terminal -> npm run start
-Pour changer l'url de l'app front afin de mettre celle de votre api sur toute l'application d'un coup,
-il faut aller dans apiUrl.
-back
-npm install
-npx nodemon index.js  
+# Guide de déploiement
+
+## Traitement des données
+
+1. **Insertion des fichiers JSON** :  
+   Insérer les fichiers JSON dans le dossier `json_à_insérer_mongo`.
+
+2. **Création d'index MongoDB** :  
+   Ajouter des index sur les champs suivants dans la collection `Enterprise` : 
+   - `EnterpriseNumber`
+   - `Denomination`
+   - `StreetFr`
+
+   D'autres index peuvent être ajoutés si nécessaire.
+
+---
+
+## Frontend
+
+1. **Installation des dépendances** :  
+   Exécutez la commande suivante pour installer les dépendances du projet :
+   ```bash
+   npm install
